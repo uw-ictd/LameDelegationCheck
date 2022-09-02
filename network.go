@@ -10,7 +10,7 @@ func IdentifyNameServers(domainName string) []*net.NS {
 	fqdnQuery := dns.Fqdn(domainName)
 	nsList, err := net.LookupNS(fqdnQuery)
 	if err != nil {
-		fmt.Printf("No name servers found")
+		fmt.Printf("No name servers found. %v\n", err)
 		return nil
 	}
 	return nsList
