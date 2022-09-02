@@ -50,14 +50,16 @@ func main() {
 	}
 }
 
-func findDelegations(res *dns.Msg) []dns.NS {
+func findDelegations(res *dns.Msg) ([]dns.NS, bool) {
 	containsDelegations := len(res.Ns) > 0
+	isAnswer := false
 	if !containsDelegations {
 		// Check if it contains answers which are NS entries
 		containsAnswers := len(res.Answer) > 0
 		if !containsAnswers {
-			return nil
+			return nil, isAnswer
 		}
+		isAnswer = true
 		res.Ns = res.Answer
 	}
 	nameservers := res.Ns
@@ -66,9 +68,11 @@ func findDelegations(res *dns.Msg) []dns.NS {
 		switch t := nsEntry.(type) {
 		case *dns.NS:
 			results = append(results, *t)
+		case *dns.SOA:
+			isAnswer = true
 		}
 	}
-	return results
+	return results, isAnswer
 }
 
 func compareDelegationCorrectness(m map[string][]dns.NS) (bool, []dns.NS) {
@@ -115,16 +119,18 @@ func QueryDomain(ctx *cli.Context) error {
 	fmt.Printf("%v\n", re)
 
 	var delegatedChildNSRecords []dns.NS
+	var authorityDelegatedNSRecords []dns.NS
 	var correctlyDelegated bool
+	var nameservers []*net.NS
 
 	for i := 1; i < len(re); i++ {
 		parent := re[i-1]
 		currentZone := re[i]
 		fmt.Printf("Finding NS for the parent %v\n", parent)
-		nameservers := IdentifyNameServers(parent)
-		//for _, ns := range nameservers {
-		//	fmt.Printf("\t[%v]\tNS: %v\n", parent, ns.Host)
-		//}
+		if nameservers == nil {
+			fmt.Printf("Updating NS\n")
+			nameservers = IdentifyNameServers(parent)
+		}
 		nsQuery := makeDNSQuery(currentZone, dns.TypeNS)
 		parentDelegations := make(map[string][]dns.NS)
 		for _, parentNS := range nameservers {
@@ -133,14 +139,24 @@ func QueryDomain(ctx *cli.Context) error {
 			if err != nil {
 				fmt.Printf("\tReceived no response from %v with error: %v\n", parent, err)
 			}
-			delegations := findDelegations(res)
+			delegations, isAnswer := findDelegations(res)
 			for _, answer := range res.Answer {
 				fmt.Printf("\t\tAnswer: %v\n", answer)
 			}
 			parentDelegations[parentNS.Host] = delegations
+			if isAnswer {
+				authorityDelegatedNSRecords = convertNetNStoDnsNS(nameservers)
+			}
 		}
 		// Check that all parents have the same delegations available
 		correctlyDelegated, delegatedChildNSRecords = compareDelegationCorrectness(parentDelegations)
+		if delegatedChildNSRecords == nil && correctlyDelegated == false {
+			if authorityDelegatedNSRecords != nil {
+				delegatedChildNSRecords = authorityDelegatedNSRecords
+				correctlyDelegated = true
+			}
+		}
+		nameservers = convertDnsNStoNetNS(delegatedChildNSRecords)
 		fmt.Printf("%v delegations from %v are %v\n", currentZone, parent, correctlyDelegated)
 		if !correctlyDelegated {
 			return errors.New("contains lame delegation at the nameservers")

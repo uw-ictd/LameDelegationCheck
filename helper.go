@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/miekg/dns"
+	"net"
 	"strings"
 )
 
@@ -22,6 +23,26 @@ func computeRecursiveChainLookups(hostname string) []string {
 		splitList := segments[i:len(segments)]
 		dn := dns.Fqdn(strings.Join(splitList, "."))
 		results = append(results, dn)
+	}
+	return results
+}
+
+func convertDnsNStoNetNS(in []dns.NS) []*net.NS {
+	results := make([]*net.NS, 0)
+	for _, rr := range in {
+		ns := &net.NS{Host: rr.Ns}
+		results = append(results, ns)
+	}
+	return results
+}
+
+func convertNetNStoDnsNS(in []*net.NS) []dns.NS {
+	results := make([]dns.NS, 0)
+	for _, rr := range in {
+		ns := dns.NS{
+			Ns:  rr.Host,
+		}
+		results = append(results, ns)
 	}
 	return results
 }
