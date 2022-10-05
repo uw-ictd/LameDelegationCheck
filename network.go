@@ -6,12 +6,14 @@ import (
 	"net"
 )
 
-func IdentifyNameServers(domainName string) []*net.NS {
+func IdentifyNameServers(domainName string, shouldLog bool) ([]*net.NS, error) {
 	fqdnQuery := dns.Fqdn(domainName)
 	nsList, err := net.LookupNS(fqdnQuery)
 	if err != nil {
-		fmt.Printf("No name servers found. %v\n", err)
-		return nil
+		if shouldLog {
+			fmt.Printf("No name servers found. %v\n", err)
+		}
+		return nil, PrepareError(NoNameServersFound, fqdnQuery)
 	}
-	return nsList
+	return nsList, nil
 }

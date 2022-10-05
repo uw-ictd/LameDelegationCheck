@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"github.com/miekg/dns"
+	"math/big"
 	"net"
 	"strings"
 )
@@ -45,4 +47,32 @@ func convertNetNStoDnsNS(in []*net.NS) []dns.NS {
 		results = append(results, ns)
 	}
 	return results
+}
+
+func makeDNSQuery(name string, queryType uint16) *dns.Msg {
+	msg := new(dns.Msg)
+	msg.SetQuestion(dns.Fqdn(name), queryType)
+	msg.Id = dns.Id()
+	return msg
+}
+
+func generateRandomString(size int) string {
+	const universe = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	s := make([]byte, size)
+	for i := 0; i < size; i++ {
+		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(universe))))
+		if err != nil {
+			return ""
+		}
+		s[i] = universe[n.Int64()]
+	}
+	return string(s)
+}
+
+func Keys(m map[int]int) []int {
+	r := make([]int, 0, len(m))
+	for k := range m {
+		r = append(r, k)
+	}
+	return r
 }
