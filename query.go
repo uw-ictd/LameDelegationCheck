@@ -7,10 +7,12 @@ import (
 	"github.com/urfave/cli/v2"
 	"net"
 	"strconv"
+	"time"
 )
 
 type Query struct {
 	Hostname string
+	QueryType uint16
 }
 
 type Result struct {
@@ -39,16 +41,15 @@ func (r *Result) SerializeAsRow() []string {
 	return row
 }
 
-func ProcessQuery(queries []Query, queryType uint16, shouldLog bool) []Result {
+func ProcessQuery(queries []Query, shouldLog bool) []Result {
 	cache := NewCache()
 
 	results := make([]Result, 0)
-	for queryIndex, query := range queries {
-		fmt.Printf("Scanning %v/%v\n", queryIndex, len(queries))
+	for _, query := range queries {
 		result := Result{Hostname: query.Hostname}
 
 		if shouldLog {
-			fmt.Printf("Querying %v for %v\n", query.Hostname, queryType)
+			fmt.Printf("Querying %v for %v\n", query.Hostname, query.QueryType)
 		}
 
 		re := computeRecursiveChainLookups(query.Hostname)
@@ -97,7 +98,11 @@ func ProcessQuery(queries []Query, queryType uint16, shouldLog bool) []Result {
 					if shouldLog {
 						fmt.Printf("Asking %v for NS records for %v\n", parentNS.Host, currentZone)
 					}
-					res, err := dns.ExchangeContext(context.Background(), nsQuery, net.JoinHostPort(parentNS.Host, "53"))
+
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second * 30)
+					defer cancel()
+
+					res, err := dns.ExchangeContext(ctx, nsQuery, net.JoinHostPort(parentNS.Host, "53"))
 					if err != nil {
 						if shouldLog {
 							fmt.Printf("\tReceived no response from %v with error: %v\n", parent, err)
@@ -149,10 +154,14 @@ func ProcessQuery(queries []Query, queryType uint16, shouldLog bool) []Result {
 		var containsLameDelegations bool
 		for _, ns := range delegatedChildNSRecords {
 			if shouldLog {
-				fmt.Printf("Asking %v for %v (%v) type\n", ns.Ns, query.Hostname, queryType)
+				fmt.Printf("Asking %v for %v (%v) type\n", ns.Ns, query.Hostname, query.QueryType)
 			}
-			dnsQuery := makeDNSQuery(query.Hostname, queryType)
-			res, err := dns.ExchangeContext(context.Background(), dnsQuery, net.JoinHostPort(ns.Ns, "53"))
+			dnsQuery := makeDNSQuery(query.Hostname, query.QueryType)
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second * 5)
+			defer cancel()
+
+			res, err := dns.ExchangeContext(ctx, dnsQuery, net.JoinHostPort(ns.Ns, "53"))
 			if err != nil || res.Authoritative == false {
 				if err != nil {
 					if shouldLog {
@@ -195,8 +204,8 @@ func QueryDomain(ctx *cli.Context) error {
 	dnsQueryTypeString := ctx.String("queryType")
 	dnsQueryType := convertQueryTypeStringToDNSType(dnsQueryTypeString)
 
-	query := Query{Hostname: domainName}
-	_ = ProcessQuery([]Query{query}, dnsQueryType, true)
+	query := Query{Hostname: domainName, QueryType: dnsQueryType}
+	_ = ProcessQuery([]Query{query}, true)
 
 	return nil
 }

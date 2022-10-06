@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func ReadFileLineByLineAsQueries(filePath string) ([]Query, error) {
+func ReadFileLineByLineAsQueries(filePath string, queryType uint16) ([]Query, error) {
 	inFile, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -18,6 +18,7 @@ func ReadFileLineByLineAsQueries(filePath string) ([]Query, error) {
 		hostname := scanner.Text()
 		q := Query{
 			Hostname: hostname,
+			QueryType: queryType,
 		}
 		results = append(results, q)
 	}
