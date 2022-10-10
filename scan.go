@@ -58,7 +58,7 @@ func ScanHostnames(ctx *cli.Context) error {
 	}
 	fmt.Printf("Total queries: %v\n", len(queries))
 
-	numThreads := runtime.NumCPU()
+	numThreads := runtime.NumCPU() * 4
 
 	tasks := make(chan Query, len(queries))
 	promiseResponses := make(chan Result, len(queries))
