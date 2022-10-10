@@ -32,6 +32,23 @@ func findDelegations(res *dns.Msg) ([]dns.NS, bool) {
 	return results, isAnswer
 }
 
+func checkResponseContentContains(res *dns.Msg, queryType uint16) bool {
+	authorityRRSet := res.Ns
+	answerRRSet := res.Answer
+
+	if len(authorityRRSet) > 0 || len(answerRRSet) > 0 {
+		for _, rrSet := range [][]dns.RR{authorityRRSet, answerRRSet} {
+			for _, rr := range rrSet {
+				if rr.Header().Rrtype == queryType {
+					return true
+				}
+			}
+		}
+	}
+
+	return false
+}
+
 func compareDelegationCorrectness(m map[string][]dns.NS, shouldLog bool) (bool, []dns.NS, error) {
 	// TODO: Perform a cleaner check, for now the assumption is the length of entries.
 	resMap := make(map[int]int)

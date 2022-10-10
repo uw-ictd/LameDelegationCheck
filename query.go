@@ -102,7 +102,7 @@ func ProcessQuery(queries []Query, cache *bigcache.BigCache, shouldLog bool) []R
 					defer cancel()
 
 					res, err := dns.ExchangeContext(ctx, nsQuery, net.JoinHostPort(parentNS.Host, "53"))
-					if err != nil || len(res.Ns) == 0 {
+					if err != nil || !checkResponseContentContains(res, dns.TypeNS) {
 						if shouldLog {
 							fmt.Printf("\tReceived no response from %v with error: %v\n", parent, err)
 						}
