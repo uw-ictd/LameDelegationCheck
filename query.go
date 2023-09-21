@@ -12,14 +12,14 @@ import (
 )
 
 type Query struct {
-	Hostname string
+	Hostname  string
 	QueryType uint16
 }
 
 type Result struct {
-	Hostname string
+	Hostname               string
 	ContainsLameDelegation bool
-	Error error
+	Error                  error
 }
 
 func GetResultRowHeader() []string {
@@ -61,7 +61,7 @@ func ProcessQuery(queries []Query, cache *bigcache.BigCache, shouldLog bool) []R
 		var authorityDelegatedNSRecords []dns.NS
 		var correctlyDelegated bool
 		var nameservers []*net.NS
-		var currentZoneDelegatedNameServers []byte  // for cache-hit
+		var currentZoneDelegatedNameServers []byte // for cache-hit
 		var err error
 
 		for i := 1; i < len(re); i++ {
@@ -98,11 +98,11 @@ func ProcessQuery(queries []Query, cache *bigcache.BigCache, shouldLog bool) []R
 						fmt.Printf("Asking %v for NS records for %v\n", parentNS.Host, currentZone)
 					}
 
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second * 30)
+					ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 					defer cancel()
 
 					res, err := dns.ExchangeContext(ctx, nsQuery, net.JoinHostPort(parentNS.Host, "53"))
-					if err != nil || !checkResponseContentContains(res, dns.TypeNS) {
+					if err != nil || (!checkResponseContentContains(res, dns.TypeNS) && !checkResponseContentContains(res, dns.TypeSOA)) {
 						if shouldLog {
 							fmt.Printf("\tReceived no response from %v with error: %v\n", parent, err)
 						}
@@ -167,7 +167,7 @@ func ProcessQuery(queries []Query, cache *bigcache.BigCache, shouldLog bool) []R
 			}
 			dnsQuery := makeDNSQuery(query.Hostname, query.QueryType)
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second * 30)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 			defer cancel()
 
 			res, err := dns.ExchangeContext(ctx, dnsQuery, net.JoinHostPort(ns.Ns, "53"))
@@ -217,7 +217,7 @@ func QueryDomain(ctx *cli.Context) error {
 	cache := NewCache()
 
 	query := Query{Hostname: domainName, QueryType: dnsQueryType}
-	_ = ProcessQuery([]Query{query}, cache,true)
+	_ = ProcessQuery([]Query{query}, cache, true)
 
 	return nil
 }

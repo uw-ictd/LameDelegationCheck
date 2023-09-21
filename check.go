@@ -52,7 +52,7 @@ func checkResponseContentContains(res *dns.Msg, queryType uint16) bool {
 func compareDelegationCorrectness(m map[string][]dns.NS, shouldLog bool) (bool, []dns.NS, error) {
 	// TODO: Perform a cleaner check, for now the assumption is the length of entries.
 	resMap := make(map[int]int)
-	nsMap := make(map[dns.NS]bool)
+	nsMap := make(map[string]dns.NS)
 	for _, delegatedEntries := range m {
 		nEntries := len(delegatedEntries)
 		if _, ok := resMap[nEntries]; ok {
@@ -61,7 +61,7 @@ func compareDelegationCorrectness(m map[string][]dns.NS, shouldLog bool) (bool, 
 			resMap[nEntries] = 1
 		}
 		for _, nsEntry := range delegatedEntries {
-			nsMap[nsEntry] = true
+			nsMap[nsEntry.Ns] = nsEntry
 		}
 	}
 	// all servers should return the same delegations.
@@ -75,7 +75,7 @@ func compareDelegationCorrectness(m map[string][]dns.NS, shouldLog bool) (bool, 
 		}
 	}
 	results := make([]dns.NS, 0)
-	for ns, _ := range nsMap {
+	for _, ns := range nsMap {
 		results = append(results, ns)
 	}
 	if len(resMap) == 1 {
