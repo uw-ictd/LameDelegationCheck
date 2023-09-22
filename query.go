@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/allegro/bigcache/v3"
-	"github.com/miekg/dns"
-	"github.com/urfave/cli/v2"
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/allegro/bigcache/v3"
+	"github.com/miekg/dns"
+	"github.com/urfave/cli/v2"
 )
 
 type Query struct {
@@ -133,6 +134,8 @@ func ProcessQuery(queries []Query, cache *bigcache.BigCache, shouldLog bool) []R
 						correctlyDelegated = true
 					}
 				}
+				// Reset records for next loop
+				authorityDelegatedNSRecords = nil
 				if err != nil {
 					result.Error = err
 					result.ContainsLameDelegation = true
@@ -144,7 +147,7 @@ func ProcessQuery(queries []Query, cache *bigcache.BigCache, shouldLog bool) []R
 					_ = cache.Set(currentZone, NetNStoCacheValueBytes(nameservers))
 				}
 			} else {
-				//fmt.Printf("HIT cache: [%v] --> [%v]\n", currentZone, string(currentZoneDelegatedNameServers))
+				//fmt.PrintHIT cache: [%v] --> [%v]\n", currentZone, string(currentZoneDelegatedNameServers))
 				nameservers = NetNSBytestoNetNS(currentZoneDelegatedNameServers)
 				delegatedChildNSRecords = convertNetNStoDnsNS(nameservers)
 				correctlyDelegated = true // Since it's a cache hit.
@@ -160,6 +163,11 @@ func ProcessQuery(queries []Query, cache *bigcache.BigCache, shouldLog bool) []R
 			}
 		}
 		// Perform the final set of queries for the actual query type lameness.
+
+		// Utilized last set of identified nameservers if no ns records were found
+		if delegatedChildNSRecords == nil {
+			delegatedChildNSRecords = convertNetNStoDnsNS(nameservers)
+		}
 		var containsLameDelegations bool
 		for _, ns := range delegatedChildNSRecords {
 			if shouldLog {
